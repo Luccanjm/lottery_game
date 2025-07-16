@@ -1,3 +1,5 @@
+import datetime
+
 import requests
 import time
 import csv
@@ -52,11 +54,25 @@ def extract_lottery_name(class_str):
             return 'quina'
     return None
 
-def return_numbers_of(selected_year,class_str,times_that_appear):
+def extract_first_year(actual_year,lottery_name):
+    first_year = None
+    url = f'https://asloterias.com.br/resultados-da-{lottery_name}-{actual_year}'
+    response = requests.get(url, headers=headers)
+    soup = BeautifulSoup(response.content, 'html.parser')
+    divs = soup.find_all('div', attrs={'class': 'col-3'})
+    if divs:
+        last_div = divs[-1]
+        li_itens = last_div.find_all('li')
+        if li_itens:
+            first_year = int(li_itens[-1].get_text())
+    return first_year
+
+def return_numbers_of(class_str,times_that_appear):
     start_time = time.time()
-    actual_year = 2025
+    actual_year = datetime.date.today().year
     all_numbers_filtred = []
     lottery_name = extract_lottery_name(class_str)
+    selected_year = extract_first_year(actual_year,lottery_name)
 
     while selected_year <= actual_year:
         url = f'https://asloterias.com.br/resultados-da-{lottery_name}-{selected_year}'
@@ -88,15 +104,15 @@ def write_game_in_csv():
         if not file_have_row:
             writer.writerow(["Lottery_name", "Game_numbers"])
 
-        lotteries_dict = {"lotofacil": dict(selected_year=2003, class_str=f'{lotofacil_class}', times_that_appear=1676),
-                          "megasena": dict(selected_year=1996, class_str=f'{megasena_class}', times_that_appear=309),
-                          "quina": dict(selected_year=1994, class_str=f'{quina_class}', times_that_appear=308),
-                          "dupla": dict(selected_year=2006, class_str=f'{dupla_class}', times_that_appear=610)}
+        lotteries_dict = {"lotofacil": dict(class_str=f'{lotofacil_class}', times_that_appear=1676),
+                          "megasena": dict(class_str=f'{megasena_class}', times_that_appear=309),
+                          "quina": dict(class_str=f'{quina_class}', times_that_appear=308),
+                          "dupla": dict(class_str=f'{dupla_class}', times_that_appear=610)}
 
         try:
             if fp.writable():
                 for key,value in lotteries_dict.items():
-                    game_result = return_numbers_of(value['selected_year'],value['class_str'], value['times_that_appear'])
+                    game_result = return_numbers_of(value['class_str'], value['times_that_appear'])
                     writer.writerow([f'{key.upper()}',game_result])
             else:
                 print("Arquivo não está no modo de escrita!")
